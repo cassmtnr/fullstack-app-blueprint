@@ -23,15 +23,16 @@
 - **Encryption**: AES-256-GCM via crypto.ts
 
 ### iOS (`app/`)
-- **Target**: iOS 18+ / Swift 6.2 / Xcode 26
+- **Target**: iOS 26+ / Swift 6.2 / Xcode 26
+- **Concurrency**: Default MainActor isolation enabled (`SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor`). All declarations are `@MainActor` unless explicitly `nonisolated`. Use `@concurrent` for functions that must run on background threads.
 - **Project**: XcodeGen (`app/project.yml` → `xcodegen generate`)
-- **UI**: SwiftUI with `@Observable` macro
+- **UI**: SwiftUI with `@Observable` macro + Liquid Glass design language
 - **Architecture**: MVVM — dedicated ViewModel files with init injection
-- **Networking**: `actor`-based `APIClient` with typed `APIEndpoint` enum, auto 401 retry
+- **Networking**: `actor`-based `APIClient` (explicitly `nonisolated` from default MainActor) with typed `APIEndpoint` enum, auto 401 retry
 - **Auth tokens**: Keychain (Security framework) via `KeychainManager`
 - **Auth state**: `AuthManager` — sign in, sign out, token refresh
 - **Preferences sync**: NSUbiquitousKeyValueStore (iCloud key-value)
-- **Design**: Theme + Typography + Spacing token structs
+- **Design**: Theme (semantic system colors) + Typography + Spacing token structs
 - **Testing**: Swift Testing framework (`import Testing`, `@Test`, `#expect`)
 
 ---
@@ -131,9 +132,30 @@ points: sql`${users.points} + ${amount}`
 ## iOS Project Rules
 
 - Bundle ID: `{{BUNDLE_ID}}`
-- Minimum deployment target: iOS 18.0
+- Minimum deployment target: iOS 26.0
+- Default actor isolation: `MainActor` (set in project.yml build settings)
 - Capabilities: Sign in with Apple, iCloud (key-value store)
 <!-- Add more capabilities as needed: Push Notifications, Background Modes, etc. -->
+
+---
+
+## Liquid Glass Rules
+
+- Navigation bars, tab bars, toolbars, and sheets automatically use Liquid Glass — do NOT override their backgrounds with opaque colors.
+- Apply `.glassEffect()` only to navigation-layer elements: floating action buttons, overlay controls, custom toolbars.
+- Do NOT apply `.glassEffect()` to content views (lists, text, media, cards).
+- Use `.scrollContentBackground(.hidden)` on Forms/Lists inside sheets to let glass show through.
+- Use `GlassEffectContainer` when multiple glass elements need coordinated sampling or morphing.
+- Use `Theme.backgroundPrimary` / `Theme.backgroundSecondary` (semantic system colors) for content backgrounds — they adapt to Liquid Glass automatically.
+
+---
+
+## Concurrency Rules (Swift 6.2)
+
+- Default MainActor isolation is enabled — do NOT add explicit `@MainActor` to types or functions (it's redundant).
+- Mark `actor` types (like `APIClient`) as needed — they opt out of the default MainActor isolation.
+- Use `@concurrent` on functions that must run on a background thread (e.g., heavy data processing). `@concurrent` implies `nonisolated`.
+- `nonisolated async` functions now inherit the caller's actor by default (SE-0461). Use `@concurrent` if you need background execution.
 
 ---
 
@@ -146,5 +168,9 @@ points: sql`${users.points} + ${amount}`
 - Do NOT store auth tokens in UserDefaults (use Keychain)
 - Do NOT return raw JSON without the response envelope
 - Do NOT skip Zod validation on request bodies
-- Do NOT use `.tabItem` modifier (use `Tab` initializer for iOS 18+)
+- Do NOT use `.tabItem` modifier (use `Tab` initializer)
 - Do NOT use XCTest (use Swift Testing: `import Testing`)
+- Do NOT add explicit `@MainActor` annotations (default actor isolation handles it)
+- Do NOT apply `.glassEffect()` to content views — only navigation-layer elements
+- Do NOT use opaque custom backgrounds on navigation bars, tab bars, or toolbars (Liquid Glass handles them)
+- Do NOT use hardcoded hex colors for backgrounds (use semantic system colors via `Color(.systemBackground)` etc.)

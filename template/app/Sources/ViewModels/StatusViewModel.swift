@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 @Observable
 final class StatusViewModel {
     var isConnected = false

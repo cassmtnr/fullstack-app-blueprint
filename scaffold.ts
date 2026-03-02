@@ -17,6 +17,8 @@ interface Config {
   teamId: string;        // TEAM_ID
   apiDomain: string;     // API_DOMAIN
   repoName: string;      // REPO_NAME (derived from output dir name if not set)
+  vpsHomeUser: string;   // VPS_HOME_USER
+  vpsDeployerUser: string; // VPS_DEPLOYER_USER
   output: string;        // Target directory
 }
 
@@ -49,6 +51,8 @@ function parseArgs(): Partial<Config> {
       case "--team-id":     config.teamId = next; i++; break;
       case "--api-domain":  config.apiDomain = next; i++; break;
       case "--repo-name":   config.repoName = next; i++; break;
+      case "--vps-home-user": config.vpsHomeUser = next; i++; break;
+      case "--vps-deployer-user": config.vpsDeployerUser = next; i++; break;
       case "--output":      config.output = next; i++; break;
     }
   }
@@ -75,6 +79,8 @@ Required options:
 
 Optional:
   --repo-name <name>        Repo name in kebab-case (defaults to output directory name)
+  --vps-home-user <user>    VPS user that owns the app directory (e.g., tars)
+  --vps-deployer-user <user> VPS user with deploy-only permissions (e.g., deployer)
   --help, -h                Show this help message
 
 Example:
@@ -115,6 +121,8 @@ async function fillMissing(partial: Partial<Config>): Promise<Config> {
   const dbPort = partial.dbPort || await prompt("PostgreSQL port", "5433");
   const teamId = partial.teamId || await prompt("Apple Team ID (e.g., 58N4UVGANT)");
   const apiDomain = partial.apiDomain || await prompt("API domain", `api.${name.toLowerCase()}.example.com`);
+  const vpsHomeUser = partial.vpsHomeUser || await prompt("VPS home user (owns app directory)");
+  const vpsDeployerUser = partial.vpsDeployerUser || await prompt("VPS deployer user (deploy-only permissions)", "deployer");
   const output = partial.output || await prompt("Output directory", `~/Dev/${toKebabCase(name)}`);
 
   // Expand ~ in output path
@@ -131,7 +139,7 @@ async function fillMissing(partial: Partial<Config>): Promise<Config> {
   if (!apiDomain) { console.error("Error: --api-domain is required"); process.exit(1); }
   if (!resolvedOutput) { console.error("Error: --output is required"); process.exit(1); }
 
-  return { name, bundleId, dbName, backendPort, dbPort, teamId, apiDomain, repoName, output: resolvedOutput };
+  return { name, bundleId, dbName, backendPort, dbPort, teamId, apiDomain, repoName, vpsHomeUser, vpsDeployerUser, output: resolvedOutput };
 }
 
 function toKebabCase(str: string): string {
@@ -186,7 +194,9 @@ function replacePlaceholders(content: string, config: Config): string {
     .replaceAll("{{DB_PORT}}", config.dbPort)
     .replaceAll("{{TEAM_ID}}", config.teamId)
     .replaceAll("{{API_DOMAIN}}", config.apiDomain)
-    .replaceAll("{{REPO_NAME}}", config.repoName);
+    .replaceAll("{{REPO_NAME}}", config.repoName)
+    .replaceAll("{{VPS_HOME_USER}}", config.vpsHomeUser)
+    .replaceAll("{{VPS_DEPLOYER_USER}}", config.vpsDeployerUser);
 }
 
 function resolveFilename(name: string, projectName: string): string {
@@ -237,6 +247,8 @@ async function main() {
   console.log(`  Team ID:      ${config.teamId}`);
   console.log(`  API Domain:   ${config.apiDomain}`);
   console.log(`  Repo Name:    ${config.repoName}`);
+  console.log(`  VPS Home:     ${config.vpsHomeUser}`);
+  console.log(`  VPS Deployer: ${config.vpsDeployerUser}`);
   console.log(`  Output:       ${config.output}`);
   console.log();
 

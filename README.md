@@ -63,6 +63,8 @@ blueprint/
 | `{{TEAM_ID}}`      | Apple Developer Team ID  | `58N4UVGANT`                 |
 | `{{API_DOMAIN}}`   | Production API domain    | `api.findmyplus.example.com` |
 | `{{REPO_NAME}}`    | kebab-case repo name     | `find-my-plus`               |
+| `{{VPS_HOME_USER}}`| App directory owner      | `tars`                       |
+| `{{VPS_DEPLOYER_USER}}` | Deploy-only user    | `deployer`                   |
 
 ## Reference
 

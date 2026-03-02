@@ -13,6 +13,7 @@ struct MainTabView: View {
                 SettingsView()
             }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
     }
 }
 

@@ -106,4 +106,4 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          script: bash /home/tars/apps/{{REPO_NAME}}/scripts/deploy.sh
+          script: bash /home/{{VPS_HOME_USER}}/apps/{{REPO_NAME}}/scripts/deploy.sh

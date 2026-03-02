@@ -102,6 +102,10 @@ Every template uses these placeholders. Replace them when scaffolding a new proj
 | `{{TEAM_ID}}`      | Apple Developer Team ID                           | `58N4UVGANT`                 |
 | `{{API_DOMAIN}}`   | Production API domain                             | `api.findmyplus.example.com` |
 | `{{REPO_NAME}}`    | kebab-case repo name (for deploy paths)           | `find-my-plus`               |
+| `{{VPS_HOME_USER}}`| VPS user that owns the app directory              | `tars`                       |
+| `{{VPS_DEPLOYER_USER}}` | VPS user with deploy-only permissions (git pull, restart) | `deployer`          |
+
+> **`VPS_HOME_USER` vs `VPS_DEPLOYER_USER`**: The home user owns the app files under `/home/<user>/apps/`. The deployer user is a restricted account that only has the permissions needed for deployment — an SSH key for `git pull` and access to run `docker compose`. It cannot modify system config, install packages, or access other users' data. The deploy script runs as the deployer but operates on files in the home user's directory.
 
 ---
 
@@ -109,17 +113,17 @@ Every template uses these placeholders. Replace them when scaffolding a new proj
 
 ### iOS
 
-- **Target**: iOS 18+
-- **Language**: Swift 6.2
+- **Target**: iOS 26+
+- **Language**: Swift 6.2 with default MainActor isolation (`SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor`)
 - **IDE**: Xcode 26
 - **Project generator**: XcodeGen (`project.yml` is the source of truth)
-- **UI**: SwiftUI with `@Observable` macro
+- **UI**: SwiftUI with `@Observable` macro + Liquid Glass design language
 - **Architecture**: MVVM with dedicated ViewModel files and init injection
 - **Networking**: `actor`-based `APIClient` with typed `APIEndpoint` enum
 - **Response decoding**: `APIResponse<T>` generic wrapper matching backend envelope
 - **Auth tokens**: Keychain (Security framework)
 - **Cross-device preferences**: `NSUbiquitousKeyValueStore` (iCloud key-value)
-- **Design system**: `Theme`, `Typography`, `Spacing` token structs
+- **Design system**: `Theme` (semantic system colors), `Typography`, `Spacing` token structs
 
 ### Backend
 
@@ -143,6 +147,13 @@ Every template uses these placeholders. Replace them when scaffolding a new proj
 
 ## 3. iOS Architecture Rules
 
+### Concurrency (Swift 6.2)
+
+- Default MainActor isolation is enabled via `SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor` build setting. All declarations are `@MainActor` unless explicitly `nonisolated` or assigned to a different actor.
+- Do NOT add explicit `@MainActor` annotations — it is redundant with the default isolation setting.
+- Use `@concurrent` on functions that must run on a background thread. `@concurrent` implies `nonisolated`.
+- `nonisolated async` functions inherit the caller's actor by default (SE-0461). Use `@concurrent` when you explicitly need background execution.
+
 ### State Management
 
 - Use `@Observable` macro exclusively. Never use `ObservableObject` + `@Published` + `@StateObject`.
@@ -151,20 +162,24 @@ Every template uses these placeholders. Replace them when scaffolding a new proj
 ### MVVM Pattern
 
 - Every non-trivial view gets a dedicated ViewModel file in `ViewModels/`.
-- ViewModels are `@MainActor @Observable final class` with init-injected dependencies.
+- ViewModels are `@Observable final class` with init-injected dependencies. They are `@MainActor` by default (via the build setting) — do NOT annotate them explicitly.
 - Default parameter values allow convenient initialization: `init(apiClient: APIClient = .shared)`.
 
 ### Networking
 
-- `APIClient` is an `actor` (not `@MainActor class`) so network calls don't block the main thread. `AuthManager` is `@MainActor` because it drives UI state (`isAuthenticated`). Swift handles cross-actor calls automatically via `await`.
+- `APIClient` is an `actor` (its own isolation domain, separate from the default MainActor) so network calls don't block the main thread. `AuthManager` is MainActor-isolated by default (via the build setting) because it drives UI state (`isAuthenticated`). Swift handles cross-actor calls automatically via `await`.
 - `APIEndpoint` enum provides type-safe routing with `.path`, `.method`, `.requiresAuth`, `.body` properties.
 - All responses decode through `APIResponse<T>` matching the backend's `{ success, data/error }` envelope.
 - JSON wire format is camelCase (matching JavaScript's native format). No key conversion strategies on encoder/decoder.
 - `EnvironmentConfig` struct provides dev/prod API base URLs via `#if DEBUG`.
 
-### Design System
+### Design System (Liquid Glass)
 
-- `Theme` struct with static color properties (using hex initializer).
+- `Theme` struct with semantic system colors for backgrounds (`Color(.systemBackground)`) — adapts to Liquid Glass and dark mode automatically.
+- Accent colors remain custom hex values for brand identity. Text uses semantic system colors (`Color(.label)` etc.).
+- Navigation bars, tab bars, toolbars, and sheets automatically use Liquid Glass — do NOT override their backgrounds.
+- Apply `.glassEffect()` only to navigation-layer elements (floating action buttons, overlay controls). Never to content views.
+- Use `.scrollContentBackground(.hidden)` on Forms/Lists inside sheets to let glass show through.
 - `Typography` struct with static `Font` properties.
 - `Spacing` struct with static `CGFloat` constants (`xs`, `sm`, `md`, `lg`, `xl`, `xxl`).
 
@@ -1644,7 +1659,7 @@ describe('404 handling', () => {
 name: {{PROJECT_NAME}}
 options:
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
   xcodeVersion: "26.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
@@ -1672,6 +1687,7 @@ settings:
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.2"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
 
 targets:
   {{PROJECT_NAME}}:
@@ -1863,6 +1879,7 @@ struct MainTabView: View {
                 SettingsView()
             }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
     }
 }
 
@@ -2208,7 +2225,6 @@ enum KeychainError: Error {
 ```swift
 import Foundation
 
-@MainActor
 @Observable
 final class AuthManager {
     static let shared = AuthManager()
@@ -2364,14 +2380,15 @@ struct EmptyResponse: Decodable {}
 import SwiftUI
 
 struct Theme {
-    // Backgrounds
-    static let backgroundPrimary = Color(hex: "#FAFAF9")
-    static let backgroundSecondary = Color(hex: "#F5F5F4")
+    // Backgrounds — use semantic system colors so content layers work with Liquid Glass chrome
+    static let backgroundPrimary = Color(.systemBackground)
+    static let backgroundSecondary = Color(.secondarySystemBackground)
+    static let backgroundGrouped = Color(.systemGroupedBackground)
 
-    // Text
-    static let textPrimary = Color(hex: "#1C1917")
-    static let textSecondary = Color(hex: "#78716C")
-    static let textTertiary = Color(hex: "#A8A29E")
+    // Text — semantic colors adapt to light/dark mode and Liquid Glass vibrancy
+    static let textPrimary = Color(.label)
+    static let textSecondary = Color(.secondaryLabel)
+    static let textTertiary = Color(.tertiaryLabel)
 
     // Accent
     static let accentPrimary = Color(hex: "#3B82F6")
@@ -2427,7 +2444,6 @@ extension Color {
 ```swift
 import Foundation
 
-@MainActor
 @Observable
 final class StatusViewModel {
     var isConnected = false
@@ -2465,7 +2481,6 @@ final class StatusViewModel {
 import Foundation
 import AuthenticationServices
 
-@MainActor
 @Observable
 final class AuthViewModel {
     var errorMessage: String?
@@ -2646,7 +2661,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          script: bash /home/tars/apps/{{REPO_NAME}}/scripts/deploy.sh
+          script: bash /home/{{VPS_HOME_USER}}/apps/{{REPO_NAME}}/scripts/deploy.sh
 ```
 
 ---
@@ -2657,9 +2672,9 @@ jobs:
 #!/bin/bash
 set -e
 
-export GIT_SSH_COMMAND="ssh -i /home/deployer/.ssh/github_readonly -o StrictHostKeyChecking=accept-new"
+export GIT_SSH_COMMAND="ssh -i /home/{{VPS_DEPLOYER_USER}}/.ssh/github_readonly -o StrictHostKeyChecking=accept-new"
 
-cd /home/tars/apps/{{REPO_NAME}}
+cd /home/{{VPS_HOME_USER}}/apps/{{REPO_NAME}}
 git pull origin main
 docker compose build backend
 docker compose up -d backend
@@ -2701,15 +2716,16 @@ Copy this into `.claude/CLAUDE.md` and fill in the blanks:
 
 ### iOS (`app/`)
 
-- **Target**: iOS 18+ / Swift 6.2 / Xcode 26
+- **Target**: iOS 26+ / Swift 6.2 / Xcode 26
+- **Concurrency**: Default MainActor isolation enabled (`SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor`). All declarations are `@MainActor` unless explicitly `nonisolated`. Use `@concurrent` for functions that must run on background threads.
 - **Project**: XcodeGen (`app/project.yml` → `xcodegen generate`)
-- **UI**: SwiftUI with `@Observable` macro
+- **UI**: SwiftUI with `@Observable` macro + Liquid Glass design language
 - **Architecture**: MVVM — dedicated ViewModel files with init injection
-- **Networking**: `actor`-based `APIClient` with typed `APIEndpoint` enum, auto 401 retry
+- **Networking**: `actor`-based `APIClient` (explicitly `nonisolated` from default MainActor) with typed `APIEndpoint` enum, auto 401 retry
 - **Auth tokens**: Keychain (Security framework) via `KeychainManager`
 - **Auth state**: `AuthManager` — sign in, sign out, token refresh
 - **Preferences sync**: NSUbiquitousKeyValueStore (iCloud key-value)
-- **Design**: Theme + Typography + Spacing token structs
+- **Design**: Theme (semantic system colors) + Typography + Spacing token structs
 - **Testing**: Swift Testing framework (`import Testing`, `@Test`, `#expect`)
 
 ---
@@ -2833,9 +2849,30 @@ points: sql`${users.points} + ${amount}`;
 ## iOS Project Rules
 
 - Bundle ID: `{{BUNDLE_ID}}`
-- Minimum deployment target: iOS 18.0
+- Minimum deployment target: iOS 26.0
+- Default actor isolation: `MainActor` (set in project.yml build settings)
 - Capabilities: Sign in with Apple, iCloud (key-value store)
 <!-- Add more capabilities as needed: Push Notifications, Background Modes, etc. -->
+
+---
+
+## Liquid Glass Rules
+
+- Navigation bars, tab bars, toolbars, and sheets automatically use Liquid Glass — do NOT override their backgrounds with opaque colors.
+- Apply `.glassEffect()` only to navigation-layer elements: floating action buttons, overlay controls, custom toolbars.
+- Do NOT apply `.glassEffect()` to content views (lists, text, media, cards).
+- Use `.scrollContentBackground(.hidden)` on Forms/Lists inside sheets to let glass show through.
+- Use `GlassEffectContainer` when multiple glass elements need coordinated sampling or morphing.
+- Use `Theme.backgroundPrimary` / `Theme.backgroundSecondary` (semantic system colors) for content backgrounds — they adapt to Liquid Glass automatically.
+
+---
+
+## Concurrency Rules (Swift 6.2)
+
+- Default MainActor isolation is enabled — do NOT add explicit `@MainActor` to types or functions (it's redundant).
+- Mark `actor` types (like `APIClient`) as needed — they opt out of the default MainActor isolation.
+- Use `@concurrent` on functions that must run on a background thread (e.g., heavy data processing). `@concurrent` implies `nonisolated`.
+- `nonisolated async` functions now inherit the caller's actor by default (SE-0461). Use `@concurrent` if you need background execution.
 
 ---
 
@@ -2848,8 +2885,12 @@ points: sql`${users.points} + ${amount}`;
 - Do NOT store auth tokens in UserDefaults (use Keychain)
 - Do NOT return raw JSON without the response envelope
 - Do NOT skip Zod validation on request bodies
-- Do NOT use `.tabItem` modifier (use `Tab` initializer for iOS 18+)
+- Do NOT use `.tabItem` modifier (use `Tab` initializer)
 - Do NOT use XCTest (use Swift Testing: `import Testing`)
+- Do NOT add explicit `@MainActor` annotations (default actor isolation handles it)
+- Do NOT apply `.glassEffect()` to content views — only navigation-layer elements
+- Do NOT use opaque custom backgrounds on navigation bars, tab bars, or toolbars (Liquid Glass handles them)
+- Do NOT use hardcoded hex colors for backgrounds (use semantic system colors via `Color(.systemBackground)` etc.)
 ````
 
 ---
@@ -3418,7 +3459,7 @@ class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate,
 }
 
 // --- Auth state management pattern ---
-// AuthManager is @MainActor @Observable, holds isAuthenticated and currentUser.
+// AuthManager is @Observable (MainActor by default via build setting), holds isAuthenticated and currentUser.
 // On sign-in: call backend POST /auth/apple → save tokens to Keychain → set isAuthenticated = true
 // On 401: AuthManager.refreshTokens() → POST /auth/refresh → save new tokens
 // On sign-out: POST /auth/logout → clear Keychain → set isAuthenticated = false
@@ -3592,3 +3633,4 @@ Common gotchas when working with XcodeGen + SwiftUI projects. Check these when t
 - **Regenerate after adding source files outside Xcode** — XcodeGen scans the `Sources/` directory, but the `.xcodeproj` won't see new files until you run `xcodegen generate` again.
 - **Simulator vs Device base URL** — `localhost:3000` works in the simulator but not on a physical device. Use your machine's local IP or a tunnel like ngrok for device testing.
 - **Add `PrivacyInfo.xcprivacy` before App Store submission** — Apple requires a Privacy Manifest (since Spring 2024). Create `app/Sources/PrivacyInfo.xcprivacy` declaring any privacy-relevant API usage (e.g., `NSPrivacyAccessedAPICategoryUserDefaults` if using `UserDefaults` or `NSUbiquitousKeyValueStore`). Not needed during development, but App Store Connect will reject builds without it.
+- **Default actor isolation** — `SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor` is set in project.yml. If you add a new Swift Package dependency that doesn't compile under this setting, you may need to set the isolation per-target rather than globally. The `actor` keyword (e.g., `actor APIClient`) correctly opts out of the default.

@@ -1,14 +1,15 @@
 import SwiftUI
 
 struct Theme {
-    // Backgrounds
-    static let backgroundPrimary = Color(hex: "#FAFAF9")
-    static let backgroundSecondary = Color(hex: "#F5F5F4")
+    // Backgrounds — use semantic system colors so content layers work with Liquid Glass chrome
+    static let backgroundPrimary = Color(.systemBackground)
+    static let backgroundSecondary = Color(.secondarySystemBackground)
+    static let backgroundGrouped = Color(.systemGroupedBackground)
 
-    // Text
-    static let textPrimary = Color(hex: "#1C1917")
-    static let textSecondary = Color(hex: "#78716C")
-    static let textTertiary = Color(hex: "#A8A29E")
+    // Text — semantic colors adapt to light/dark mode and Liquid Glass vibrancy
+    static let textPrimary = Color(.label)
+    static let textSecondary = Color(.secondaryLabel)
+    static let textTertiary = Color(.tertiaryLabel)
 
     // Accent
     static let accentPrimary = Color(hex: "#3B82F6")

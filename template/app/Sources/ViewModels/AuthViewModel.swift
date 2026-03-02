@@ -1,7 +1,6 @@
 import Foundation
 import AuthenticationServices
 
-@MainActor
 @Observable
 final class AuthViewModel {
     var errorMessage: String?
