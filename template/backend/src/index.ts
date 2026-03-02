@@ -12,7 +12,7 @@ const app = new Hono();
 
 // Global middleware
 app.use("*", logger());
-app.use("*", cors()); // TODO: restrict origins for production (e.g., cors({ origin: "https://your-domain.com" }))
+app.use("*", cors({ origin: env.CORS_ORIGIN }));
 app.use("*", errorHandler());
 
 // Health check (outside /api/v1 — used by load balancers)

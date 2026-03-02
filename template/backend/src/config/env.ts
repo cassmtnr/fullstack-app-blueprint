@@ -9,6 +9,7 @@ const envSchema = z.object({
   APPLE_BUNDLE_ID: z.string().min(1),
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  CORS_ORIGIN: z.string().default("*"),
 });
 
 export const env = envSchema.parse(process.env);

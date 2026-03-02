@@ -11,7 +11,11 @@ export function encrypt(text: string, key: string): string {
 }
 
 export function decrypt(ciphertext: string, key: string): string {
-  const [ivHex, authTagHex, encrypted] = ciphertext.split(":");
+  const parts = ciphertext.split(":");
+  if (parts.length !== 3) {
+    throw new Error("Invalid ciphertext format");
+  }
+  const [ivHex, authTagHex, encrypted] = parts;
   const keyBuffer = Buffer.from(key, "hex");
   const decipher = createDecipheriv("aes-256-gcm", keyBuffer, Buffer.from(ivHex, "hex"));
   decipher.setAuthTag(Buffer.from(authTagHex, "hex"));

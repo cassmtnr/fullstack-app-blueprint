@@ -27,44 +27,25 @@ export async function verifyAppleIdentityToken(
   }
 }
 
-export async function createOrFindUser(
-  appleUserId: string,
-  email?: string,
-  fullName?: string,
-) {
-  const [existing] = await db
-    .select()
-    .from(users)
-    .where(eq(users.appleUserId, appleUserId))
-    .limit(1);
-
-  if (existing) {
-    // Update email/name if provided (Apple only sends these on first sign-in)
-    if (email || fullName) {
-      const [updated] = await db
-        .update(users)
-        .set({
-          ...(email ? { email } : {}),
-          ...(fullName ? { fullName } : {}),
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, existing.id))
-        .returning();
-      return updated;
-    }
-    return existing;
-  }
-
-  const [newUser] = await db
+export async function createOrFindUser(appleUserId: string, email?: string, fullName?: string) {
+  const [user] = await db
     .insert(users)
     .values({
       appleUserId,
       email: email ?? null,
       fullName: fullName ?? null,
     })
+    .onConflictDoUpdate({
+      target: users.appleUserId,
+      set: {
+        ...(email ? { email } : {}),
+        ...(fullName ? { fullName } : {}),
+        updatedAt: new Date(),
+      },
+    })
     .returning();
 
-  return newUser;
+  return user;
 }
 
 function durationToSeconds(duration: string): number {
@@ -79,7 +60,8 @@ function durationToMs(duration: string): number {
   return durationToSeconds(duration) * 1000;
 }
 
-export async function issueTokens(userId: string) {
+export async function issueTokens(userId: string, tx?: typeof db) {
+  const client = tx ?? db;
   const secret = new TextEncoder().encode(env.JWT_SECRET);
   const accessToken = await new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: "HS256" })
@@ -89,7 +71,7 @@ export async function issueTokens(userId: string) {
 
   // Refresh token is a random UUID stored in DB
   const refreshToken = crypto.randomUUID();
-  await db.insert(refreshTokensTable).values({
+  await client.insert(refreshTokensTable).values({
     token: refreshToken,
     userId,
     expiresAt: new Date(Date.now() + durationToMs(env.JWT_REFRESH_EXPIRES_IN)),
@@ -103,30 +85,32 @@ export async function issueTokens(userId: string) {
 }
 
 export async function refreshTokens(token: string) {
-  const [stored] = await db
-    .select()
-    .from(refreshTokensTable)
-    .where(
-      and(
-        eq(refreshTokensTable.token, token),
-        isNull(refreshTokensTable.revokedAt),
-        gt(refreshTokensTable.expiresAt, new Date()),
-      ),
-    )
-    .limit(1);
+  return db.transaction(async (tx) => {
+    const [stored] = await tx
+      .select()
+      .from(refreshTokensTable)
+      .where(
+        and(
+          eq(refreshTokensTable.token, token),
+          isNull(refreshTokensTable.revokedAt),
+          gt(refreshTokensTable.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
 
-  if (!stored) {
-    throw new UnauthorizedError("Invalid or expired refresh token");
-  }
+    if (!stored) {
+      throw new UnauthorizedError("Invalid or expired refresh token");
+    }
 
-  // Revoke the used refresh token (rotation)
-  await db
-    .update(refreshTokensTable)
-    .set({ revokedAt: new Date() })
-    .where(eq(refreshTokensTable.id, stored.id));
+    // Revoke the used refresh token (rotation)
+    await tx
+      .update(refreshTokensTable)
+      .set({ revokedAt: new Date() })
+      .where(eq(refreshTokensTable.id, stored.id));
 
-  // Issue new token pair
-  return issueTokens(stored.userId);
+    // Issue new token pair
+    return issueTokens(stored.userId, tx);
+  });
 }
 
 export async function revokeRefreshToken(token: string) {
