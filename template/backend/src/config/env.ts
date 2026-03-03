@@ -7,8 +7,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   APPLE_BUNDLE_ID: z.string().min(1),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  JWT_ACCESS_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, 'Must match <number><s|m|h|d> (e.g. "15m")').default("15m"),
+  JWT_REFRESH_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, 'Must match <number><s|m|h|d> (e.g. "30d")').default("30d"),
   CORS_ORIGIN: z.string().default("*"),
 });
 
