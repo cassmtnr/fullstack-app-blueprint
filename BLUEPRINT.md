@@ -102,8 +102,8 @@ Every template uses these placeholders. Replace them when scaffolding a new proj
 | `{{TEAM_ID}}`      | Apple Developer Team ID                           | `A1B2C3D4E5`                 |
 | `{{API_DOMAIN}}`   | Production API domain                             | `api.nightowl.example.com` |
 | `{{REPO_NAME}}`    | kebab-case repo name (for deploy paths)           | `night-owl`                |
-| `{{VPS_HOME_USER}}`| VPS user that owns the app directory              | `tars`                       |
-| `{{VPS_DEPLOYER_USER}}` | VPS user with deploy-only permissions (git pull, restart) | `deployer`          |
+| `{{VPS_HOME_USER}}`| VPS user that owns the app directory              | `sudoUser`                       |
+| `{{VPS_DEPLOYER_USER}}` | VPS user with deploy-only permissions (git pull, restart) | `deployerUser`          |
 
 > **`VPS_HOME_USER` vs `VPS_DEPLOYER_USER`**: The home user owns the app files under `/home/<user>/apps/`. The deployer user is a restricted account that only has the permissions needed for deployment — an SSH key for `git pull` and access to run `docker compose`. It cannot modify system config, install packages, or access other users' data. The deploy script runs as the deployer but operates on files in the home user's directory.
 

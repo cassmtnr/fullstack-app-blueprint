@@ -63,8 +63,8 @@ blueprint/
 | `{{TEAM_ID}}`      | Apple Developer Team ID  | `A1B2C3D4E5`                 |
 | `{{API_DOMAIN}}`   | Production API domain    | `api.nightowl.example.com` |
 | `{{REPO_NAME}}`    | kebab-case repo name     | `night-owl`                |
-| `{{VPS_HOME_USER}}`| App directory owner      | `tars`                       |
-| `{{VPS_DEPLOYER_USER}}` | Deploy-only user    | `deployer`                   |
+| `{{VPS_HOME_USER}}`| App directory owner      | `sudoUser`                       |
+| `{{VPS_DEPLOYER_USER}}` | Deploy-only user    | `deployerUser`                   |
 
 ## Reference
 

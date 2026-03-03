@@ -79,8 +79,8 @@ Required options:
 
 Optional:
   --repo-name <name>        Repo name in kebab-case (defaults to output directory name)
-  --vps-home-user <user>    VPS user that owns the app directory (e.g., tars)
-  --vps-deployer-user <user> VPS user with deploy-only permissions (e.g., deployer)
+  --vps-home-user <user>    VPS user that owns the app directory (e.g., sudoUser)
+  --vps-deployer-user <user> VPS user with deploy-only permissions (e.g., deployerUser)
   --help, -h                Show this help message
 
 Example:
@@ -122,7 +122,7 @@ async function fillMissing(partial: Partial<Config>): Promise<Config> {
   const teamId = partial.teamId || await prompt("Apple Team ID");
   const apiDomain = partial.apiDomain || await prompt("API domain", `api.${name.toLowerCase()}.example.com`);
   const vpsHomeUser = partial.vpsHomeUser || await prompt("VPS home user (owns app directory)");
-  const vpsDeployerUser = partial.vpsDeployerUser || await prompt("VPS deployer user (deploy-only permissions)", "deployer");
+  const vpsDeployerUser = partial.vpsDeployerUser || await prompt("VPS deployer user (deploy-only permissions)", "deployerUser");
   const output = partial.output || await prompt("Output directory", `~/Dev/${toKebabCase(name)}`);
 
   // Expand ~ in output path
