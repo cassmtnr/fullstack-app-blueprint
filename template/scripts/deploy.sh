@@ -18,4 +18,4 @@ docker compose build backend
 docker compose run --rm backend bun run db:push
 docker compose up -d backend
 sleep 5
-curl --fail --retry 3 --retry-delay 3 http://localhost:{{BACKEND_PORT}}/api/v1/status
+curl --fail --retry 5 --retry-delay 3 --retry-connrefused http://localhost:{{BACKEND_PORT}}/api/v1/status
