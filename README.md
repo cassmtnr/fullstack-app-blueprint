@@ -14,14 +14,14 @@ Reusable template for bootstrapping iOS (SwiftUI) + backend (Bun/Hono/Drizzle) m
 
 ```bash
 bun run ~/Dev/blueprint/scaffold.ts \
-  --name FindMyPlus \
-  --bundle-id com.cassmtnr.findmyplus \
-  --db-name findmyplus \
+  --name NightOwl \
+  --bundle-id com.example.nightowl \
+  --db-name nightowl \
   --backend-port 4000 \
   --db-port 5433 \
-  --team-id 58N4UVGANT \
-  --api-domain api.findmyplus.example.com \
-  --output ~/Dev/find-my-plus
+  --team-id A1B2C3D4E5 \
+  --api-domain api.nightowl.example.com \
+  --output ~/Dev/night-owl
 ```
 
 If any required flag is missing, the script prompts interactively.
@@ -55,14 +55,14 @@ blueprint/
 
 | Placeholder        | Description              | Example                      |
 | ------------------ | ------------------------ | ---------------------------- |
-| `{{PROJECT_NAME}}` | PascalCase project name  | `FindMyPlus`                 |
-| `{{BUNDLE_ID}}`    | Reverse-domain bundle ID | `com.cassmtnr.findmyplus`    |
-| `{{DB_NAME}}`      | Lowercase database name  | `findmyplus`                 |
+| `{{PROJECT_NAME}}` | PascalCase project name  | `NightOwl`                 |
+| `{{BUNDLE_ID}}`    | Reverse-domain bundle ID | `com.example.nightowl`     |
+| `{{DB_NAME}}`      | Lowercase database name  | `nightowl`                 |
 | `{{BACKEND_PORT}}` | Host port for the API    | `4000`                       |
 | `{{DB_PORT}}`      | Host port for PostgreSQL | `5433`                       |
-| `{{TEAM_ID}}`      | Apple Developer Team ID  | `58N4UVGANT`                 |
-| `{{API_DOMAIN}}`   | Production API domain    | `api.findmyplus.example.com` |
-| `{{REPO_NAME}}`    | kebab-case repo name     | `find-my-plus`               |
+| `{{TEAM_ID}}`      | Apple Developer Team ID  | `A1B2C3D4E5`                 |
+| `{{API_DOMAIN}}`   | Production API domain    | `api.nightowl.example.com` |
+| `{{REPO_NAME}}`    | kebab-case repo name     | `night-owl`                |
 | `{{VPS_HOME_USER}}`| App directory owner      | `tars`                       |
 | `{{VPS_DEPLOYER_USER}}` | Deploy-only user    | `deployer`                   |
 
