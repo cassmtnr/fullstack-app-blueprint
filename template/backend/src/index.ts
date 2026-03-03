@@ -10,10 +10,12 @@ import { success } from "./utils";
 
 const app = new Hono();
 
+// Global error handler
+app.onError(errorHandler);
+
 // Global middleware
 app.use("*", logger());
 app.use("*", cors({ origin: env.CORS_ORIGIN }));
-app.use("*", errorHandler());
 
 // Health check (outside /api/v1 — used by load balancers)
 app.get("/health", (c) =>

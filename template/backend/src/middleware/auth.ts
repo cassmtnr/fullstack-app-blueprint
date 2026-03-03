@@ -13,8 +13,12 @@ export async function authMiddleware(c: Context, next: Next) {
   try {
     const secret = new TextEncoder().encode(env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-    c.set("userId", payload.sub as string);
-  } catch {
+    if (typeof payload.sub !== "string") {
+      throw new UnauthorizedError("Token missing subject claim");
+    }
+    c.set("userId", payload.sub);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) throw err;
     throw new UnauthorizedError("Invalid or expired token");
   }
 

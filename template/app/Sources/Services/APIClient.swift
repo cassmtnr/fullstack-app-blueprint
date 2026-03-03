@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Environment Configuration
 
-enum AppEnvironment {
+nonisolated enum AppEnvironment {
     case development, production
 
     static var current: AppEnvironment {
@@ -14,7 +14,7 @@ enum AppEnvironment {
     }
 }
 
-struct EnvironmentConfig {
+nonisolated struct EnvironmentConfig {
     let apiBaseURL: String
 
     static var current: EnvironmentConfig {
@@ -30,7 +30,7 @@ struct EnvironmentConfig {
 
 // MARK: - API Errors
 
-enum APIError: Error, LocalizedError {
+nonisolated enum APIError: Error, LocalizedError, Sendable {
     case invalidURL
     case networkError(Error)
     case decodingError(Error)
@@ -76,7 +76,7 @@ actor APIClient {
         self.session = URLSession(configuration: config)
     }
 
-    func request<T: Decodable>(_ endpoint: APIEndpoint, retryOn401: Bool = true) async throws -> T {
+    func request<T: Decodable & Sendable>(_ endpoint: APIEndpoint, retryOn401: Bool = true) async throws -> T {
         let urlString = baseURL + endpoint.path
 
         guard let url = URL(string: urlString) else {
@@ -136,10 +136,10 @@ actor APIClient {
 // MARK: - Type Erasure
 // Swift can't directly encode existential `any Encodable` — this wrapper bridges it.
 
-private struct AnyEncodable: Encodable {
+nonisolated private struct AnyEncodable: Encodable, @unchecked Sendable {
     private let encode: (Encoder) throws -> Void
 
-    init(_ wrapped: any Encodable) {
+    init(_ wrapped: any Encodable & Sendable) {
         self.encode = { encoder in
             try wrapped.encode(to: encoder)
         }

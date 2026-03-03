@@ -496,9 +496,12 @@ BACKEND_PORT={{BACKEND_PORT}}
 # ---- Apple Sign-In ----
 APPLE_BUNDLE_ID={{BUNDLE_ID}}
 
+# ---- CORS (optional — defaults to "*") ----
+# CORS_ORIGIN=*                # Set to your frontend origin in production (e.g., https://your-domain.com)
+
 # ---- JWT Expiry (optional — defaults shown) ----
 # JWT_ACCESS_EXPIRES_IN=15m
-# JWT_REFRESH_EXPIRES_IN=7d
+# JWT_REFRESH_EXPIRES_IN=30d
 ```
 
 ---
@@ -791,9 +794,12 @@ APPLE_BUNDLE_ID={{BUNDLE_ID}}
 PORT=3000
 NODE_ENV=development
 
+# CORS (optional — defaults to "*")
+# CORS_ORIGIN=*               # Set to your frontend origin in production (e.g., https://your-domain.com)
+
 # JWT Expiry (optional — defaults shown)
 # JWT_ACCESS_EXPIRES_IN=15m
-# JWT_REFRESH_EXPIRES_IN=7d
+# JWT_REFRESH_EXPIRES_IN=30d
 ```
 
 ---
@@ -814,8 +820,15 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   APPLE_BUNDLE_ID: z.string().min(1),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  JWT_ACCESS_EXPIRES_IN: z
+    .string()
+    .regex(/^\d+[smhd]$/, 'Must match <number><s|m|h|d> (e.g. "15m")')
+    .default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z
+    .string()
+    .regex(/^\d+[smhd]$/, 'Must match <number><s|m|h|d> (e.g. "30d")')
+    .default('30d'),
+  CORS_ORIGIN: z.string().default('*'),
 });
 
 export const env = envSchema.parse(process.env);
@@ -905,37 +918,31 @@ export * from './refresh-tokens';
 ### Backend: `backend/src/middleware/error-handler.ts`
 
 ```typescript
-import type { Context, Next } from 'hono';
+import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { AppError } from '../utils/errors';
 import { error } from '../utils/response';
 
-export function errorHandler() {
-  return async (c: Context, next: Next) => {
-    try {
-      await next();
-    } catch (err) {
-      if (err instanceof AppError) {
-        return error(
-          c,
-          err.code,
-          err.message,
-          err.statusCode as ContentfulStatusCode,
-        );
-      }
-      if (err instanceof Error && err.name === 'ZodError') {
-        const zodErr = err as Error & { issues: Array<{ message: string }> };
-        return error(
-          c,
-          'VALIDATION_ERROR',
-          zodErr.issues[0]?.message || 'Validation failed',
-          400,
-        );
-      }
-      console.error('Unhandled error:', err);
-      return error(c, 'INTERNAL_ERROR', 'Internal server error', 500);
-    }
-  };
+export function errorHandler(err: Error, c: Context) {
+  if (err instanceof AppError) {
+    return error(
+      c,
+      err.code,
+      err.message,
+      err.statusCode as ContentfulStatusCode,
+    );
+  }
+  if (err.name === 'ZodError') {
+    const zodErr = err as Error & { issues: Array<{ message: string }> };
+    return error(
+      c,
+      'VALIDATION_ERROR',
+      zodErr.issues[0]?.message || 'Validation failed',
+      400,
+    );
+  }
+  console.error('Unhandled error:', err);
+  return error(c, 'INTERNAL_ERROR', 'Internal server error', 500);
 }
 ```
 
@@ -959,8 +966,12 @@ export async function authMiddleware(c: Context, next: Next) {
   try {
     const secret = new TextEncoder().encode(env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-    c.set('userId', payload.sub as string);
-  } catch {
+    if (typeof payload.sub !== 'string') {
+      throw new UnauthorizedError('Token missing subject claim');
+    }
+    c.set('userId', payload.sub);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) throw err;
     throw new UnauthorizedError('Invalid or expired token');
   }
 
@@ -1580,10 +1591,12 @@ import { success } from './utils';
 
 const app = new Hono();
 
+// Global error handler
+app.onError(errorHandler);
+
 // Global middleware
 app.use('*', logger());
-app.use('*', cors()); // TODO: restrict origins for production (e.g., cors({ origin: "https://your-domain.com" }))
-app.use('*', errorHandler());
+app.use('*', cors({ origin: env.CORS_ORIGIN }));
 
 // Health check (outside /api/v1 — used by load balancers)
 app.get('/health', (c) =>
@@ -1944,7 +1957,7 @@ import Foundation
 
 // MARK: - Environment Configuration
 
-enum AppEnvironment {
+nonisolated enum AppEnvironment {
     case development, production
 
     static var current: AppEnvironment {
@@ -1956,7 +1969,7 @@ enum AppEnvironment {
     }
 }
 
-struct EnvironmentConfig {
+nonisolated struct EnvironmentConfig {
     let apiBaseURL: String
 
     static var current: EnvironmentConfig {
@@ -1972,7 +1985,7 @@ struct EnvironmentConfig {
 
 // MARK: - API Errors
 
-enum APIError: Error, LocalizedError {
+nonisolated enum APIError: Error, LocalizedError, Sendable {
     case invalidURL
     case networkError(Error)
     case decodingError(Error)
@@ -2018,7 +2031,7 @@ actor APIClient {
         self.session = URLSession(configuration: config)
     }
 
-    func request<T: Decodable>(_ endpoint: APIEndpoint, retryOn401: Bool = true) async throws -> T {
+    func request<T: Decodable & Sendable>(_ endpoint: APIEndpoint, retryOn401: Bool = true) async throws -> T {
         let urlString = baseURL + endpoint.path
 
         guard let url = URL(string: urlString) else {
@@ -2078,10 +2091,10 @@ actor APIClient {
 // MARK: - Type Erasure
 // Swift can't directly encode existential `any Encodable` — this wrapper bridges it.
 
-private struct AnyEncodable: Encodable {
+nonisolated private struct AnyEncodable: Encodable, @unchecked Sendable {
     private let encode: (Encoder) throws -> Void
 
-    init(_ wrapped: any Encodable) {
+    init(_ wrapped: any Encodable & Sendable) {
         self.encode = { encoder in
             try wrapped.encode(to: encoder)
         }
