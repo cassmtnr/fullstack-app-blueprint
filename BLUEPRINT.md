@@ -10,7 +10,7 @@ A reusable template for bootstrapping and maintaining iOS (SwiftUI) + backend (B
 
 ### Purpose
 
-This standard defines the architecture, conventions, and boilerplate for every iOS + backend monorepo. It combines the best patterns from FindMyPlus (mature networking layer, production-grade backend) and SupplementStack (modern Swift 6.2, `@Observable`, MVVM+DI, design system).
+This standard defines the architecture, conventions, and boilerplate for every iOS + backend monorepo. It combines the best patterns from prior projects covering mature networking layers, production-grade backends, modern Swift 6.2, `@Observable`, MVVM+DI, and design systems.
 
 ### Monorepo Structure
 
@@ -94,14 +94,14 @@ Every template uses these placeholders. Replace them when scaffolding a new proj
 
 | Placeholder        | Description                                       | Example                      |
 | ------------------ | ------------------------------------------------- | ---------------------------- |
-| `{{PROJECT_NAME}}` | PascalCase project name (used in Swift, XcodeGen) | `FindMyPlus`                 |
-| `{{BUNDLE_ID}}`    | Reverse-domain bundle identifier                  | `com.cassmtnr.findmyplus`    |
-| `{{DB_NAME}}`      | Lowercase database name                           | `findmyplus`                 |
+| `{{PROJECT_NAME}}` | PascalCase project name (used in Swift, XcodeGen) | `NightOwl`                 |
+| `{{BUNDLE_ID}}`    | Reverse-domain bundle identifier                  | `com.example.nightowl`     |
+| `{{DB_NAME}}`      | Lowercase database name                           | `nightowl`                 |
 | `{{BACKEND_PORT}}` | Host port exposed for the API                     | `4000`                       |
 | `{{DB_PORT}}`      | Host port exposed for PostgreSQL                  | `5433`                       |
-| `{{TEAM_ID}}`      | Apple Developer Team ID                           | `58N4UVGANT`                 |
-| `{{API_DOMAIN}}`   | Production API domain                             | `api.findmyplus.example.com` |
-| `{{REPO_NAME}}`    | kebab-case repo name (for deploy paths)           | `find-my-plus`               |
+| `{{TEAM_ID}}`      | Apple Developer Team ID                           | `A1B2C3D4E5`                 |
+| `{{API_DOMAIN}}`   | Production API domain                             | `api.nightowl.example.com` |
+| `{{REPO_NAME}}`    | kebab-case repo name (for deploy paths)           | `night-owl`                |
 | `{{VPS_HOME_USER}}`| VPS user that owns the app directory              | `tars`                       |
 | `{{VPS_DEPLOYER_USER}}` | VPS user with deploy-only permissions (git pull, restart) | `deployer`          |
 
@@ -2977,7 +2977,7 @@ In Drizzle schema, use `text("id").$defaultFn(() => createId())` instead of `uui
 | **Environment variables** | SCREAMING_SNAKE_CASE             | `DATABASE_URL`, `JWT_SECRET`               |
 | **Error codes**           | SCREAMING_SNAKE_CASE             | `NOT_FOUND`, `TOKEN_EXPIRED`               |
 | **Git branches**          | kebab-case                       | `feature/add-auth`, `fix/status-endpoint`  |
-| **Database names**        | lowercase                        | `findmyplus`, `supplementstack`            |
+| **Database names**        | lowercase                        | `nightowl`, `taskflow`                   |
 
 ---
 

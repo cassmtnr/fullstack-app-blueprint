@@ -68,13 +68,13 @@ Usage:
   bun run scaffold.ts [options]
 
 Required options:
-  --name <PascalCase>       Project name (e.g., FindMyPlus)
-  --bundle-id <id>          Bundle identifier (e.g., com.cassmtnr.findmyplus)
-  --db-name <name>          Database name (e.g., findmyplus)
+  --name <PascalCase>       Project name (e.g., NightOwl)
+  --bundle-id <id>          Bundle identifier (e.g., com.example.nightowl)
+  --db-name <name>          Database name (e.g., nightowl)
   --backend-port <port>     Backend host port (e.g., 4000)
   --db-port <port>          PostgreSQL host port (e.g., 5433)
-  --team-id <id>            Apple Developer Team ID (e.g., 58N4UVGANT)
-  --api-domain <domain>     Production API domain (e.g., api.findmyplus.example.com)
+  --team-id <id>            Apple Developer Team ID (e.g., A1B2C3D4E5)
+  --api-domain <domain>     Production API domain (e.g., api.nightowl.example.com)
   --output <path>           Target directory for the new project
 
 Optional:
@@ -85,14 +85,14 @@ Optional:
 
 Example:
   bun run scaffold.ts \\
-    --name FindMyPlus \\
-    --bundle-id com.cassmtnr.findmyplus \\
-    --db-name findmyplus \\
+    --name NightOwl \\
+    --bundle-id com.example.nightowl \\
+    --db-name nightowl \\
     --backend-port 4000 \\
     --db-port 5433 \\
-    --team-id 58N4UVGANT \\
-    --api-domain api.findmyplus.example.com \\
-    --output ~/Dev/find-my-plus
+    --team-id A1B2C3D4E5 \\
+    --api-domain api.nightowl.example.com \\
+    --output ~/Dev/night-owl
 
 If any required option is missing, the script will prompt interactively.
 `);
@@ -115,11 +115,11 @@ async function prompt(question: string, defaultValue?: string): Promise<string> 
 
 async function fillMissing(partial: Partial<Config>): Promise<Config> {
   const name = partial.name || await prompt("Project name (PascalCase)");
-  const bundleId = partial.bundleId || await prompt("Bundle ID", `com.cassmtnr.${name.toLowerCase()}`);
+  const bundleId = partial.bundleId || await prompt("Bundle ID", `com.example.${name.toLowerCase()}`);
   const dbName = partial.dbName || await prompt("Database name", name.toLowerCase());
   const backendPort = partial.backendPort || await prompt("Backend port", "4000");
   const dbPort = partial.dbPort || await prompt("PostgreSQL port", "5433");
-  const teamId = partial.teamId || await prompt("Apple Team ID (e.g., 58N4UVGANT)");
+  const teamId = partial.teamId || await prompt("Apple Team ID");
   const apiDomain = partial.apiDomain || await prompt("API domain", `api.${name.toLowerCase()}.example.com`);
   const vpsHomeUser = partial.vpsHomeUser || await prompt("VPS home user (owns app directory)");
   const vpsDeployerUser = partial.vpsDeployerUser || await prompt("VPS deployer user (deploy-only permissions)", "deployer");
@@ -166,7 +166,7 @@ function validate(config: Config): void {
   const errors: string[] = [];
 
   if (!isPascalCase(config.name)) {
-    errors.push(`--name must be PascalCase (e.g., FindMyPlus). Got: "${config.name}"`);
+    errors.push(`--name must be PascalCase (e.g., NightOwl). Got: "${config.name}"`);
   }
   if (!isNumericPort(config.backendPort)) {
     errors.push(`--backend-port must be a number between 1 and 65535. Got: "${config.backendPort}"`);
